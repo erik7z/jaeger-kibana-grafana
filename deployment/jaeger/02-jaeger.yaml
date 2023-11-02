@@ -1,0 +1,30 @@
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  name: log-jaeger
+spec:
+  strategy: production
+  query:
+    options:
+      query:
+        base-path: /jaeger
+#  collector:
+#    resources:
+#      limits:
+#        cpu: 100m
+#        memory: 512Mi
+  ingress:
+    enabled: false # set to true if using default ingress
+#    annotations:
+#      kubernetes.io/ingress.global-static-ip-name: "jaeger-static-ip"
+  storage:
+    type: elasticsearch
+    esIndexCleaner:
+      successfulJobsHistoryLimit: 0
+    dependencies:
+      successfulJobsHistoryLimit: 0
+    options:
+      es:
+        server-urls: http://log-elastic-es-http:9200
+        tags-as-fields:
+          all: true

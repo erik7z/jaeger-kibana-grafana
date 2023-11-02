@@ -1,0 +1,4 @@
+controller:
+  serviceAccount: secure-nginx-ingress-account
+  service:
+    loadBalancerIP: 35.220.186.66

@@ -1,0 +1,26 @@
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: log-kibana
+spec:
+  version: 7.2.0
+  count: 1
+  config:
+    server:
+      basePath: "/kibana"
+      rewriteBasePath: true
+  podTemplate:
+    spec:
+      containers:
+        - name: kibana
+          readinessProbe:
+            httpGet:
+              path: /kibana/app/kibana
+              port: 5601
+              initialDelaySeconds: 60
+  elasticsearchRef:
+    name: log-elastic
+  http:
+    tls:
+      selfSignedCertificate:
+        disabled: true

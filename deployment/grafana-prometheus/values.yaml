@@ -1,0 +1,607 @@
+prometheus:
+  prometheusSpec:
+    additionalScrapeConfigs:
+      - job_name: glb_api_scrape
+        scrape_interval: 10s
+        scrape_timeout: 5s
+        metrics_path: /metrics
+        scheme: http
+        kubernetes_sd_configs:
+          - role: endpoints
+            namespaces:
+              names:
+                - default
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]
+            action: replace
+            target_label: __scheme__
+            regex: (https?)
+          - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+            action: replace
+            target_label: __address__
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+          - action: labelmap
+            regex: __meta_kubernetes_service_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_service_name]
+            action: replace
+            target_label: kubernetes_name
+
+grafana:
+  env:
+    GF_INSTALL_PLUGINS: "redis-datasource,grafana-clock-panel,grafana-simple-json-datasource"
+  adminPassword: '111111'
+  grafana.ini:
+    unified_alerting:
+      enabled: true
+    alerting:
+      enabled: false
+    smtp:
+      enabled: true
+      host: mail.do-it.co:26
+      from_address: "glb_bot@do-it.co"
+    server:
+      root_url: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+      serve_from_sub_path: true
+    users:
+      default_theme: light
+  sidecar:
+    dashboards:
+      folderAnnotation: grafana_folder
+    provider:
+      allowUiUpdates: true
+      foldersFromFilesStructure: true
+  smtp:
+    existingSecret: grafana-smtp-credentials
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Elasticsearch
+          type: elasticsearch
+          uid: elastic
+          orgId: 1
+          access: proxy
+          database: jaeger-span-*
+          url: http://log-elastic-es-default.default:9200
+          jsonData:
+            esVersion: "7.10.0"
+            timeField: "startTimeMillis"
+            timeInterval: "10s"
+            maxConcurrentShardRequests: 128
+        - name: Jaeger
+          type: jaeger
+          uid: jaeger
+          orgId: 1
+          access: proxy
+          url: http://log-jaeger-query.default:16686
+          jsonData:
+            nodeGraph:
+              enabled: true
+            tracesToLogsV2:
+              datasourceUid: "grafana"
+        - name: Redis
+          type: redis-datasource
+          uid: redis
+          access: proxy
+          orgId: 1
+          isDefault: false
+          version: 1
+          url: redis://redis-master-port.default.svc.cluster.local:6379
+          jsonData:
+            client: standalone
+            poolSize: 5
+            timeout: 10
+            pingInterval: 0
+            pipelineWindow: 0
+          editable: true
+  alerting:
+    contactpoints.yaml:
+      apiVersion: 1
+      contactPoints:
+        - orgId: 1
+          name: custom-notifier
+          receivers:
+            - uid: email-notifier
+              type: email
+              settings:
+                addresses: zzzloy777@gmail.com
+                singleEmail: false
+                subject: "Alert: ${ruleName} - ${state}"
+            - uid: telegram-notifier
+              type: telegram
+              settings:
+                bottoken: "5634755971:AAEdKNFylXSSjFIRBmdEj_afDi5q4-c2_CE"
+                chatid: "-975533801"
+                message: |-
+                  {{`{{ template "telegram_message" . }}`}}
+            - uid: slack-notifier
+              type: slack
+              settings:
+                url: "https://hooks.slack.com/services/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"
+                mentionChannel: "here"
+                title: |-
+                  {{`{{ template "slack_title" . }}`}}
+                text: |-
+                  {{`{{ template "slack_message" . }}`}}
+    notification-templates.yaml:
+      apiVersion: 1
+      templates:
+        - name: telegram-template
+          template: |-
+              {{`
+                {{ define "telegram_message" }}
+                {{ if gt (len .Alerts.Firing) 0 }}
+                <b>🔥 {{ len .Alerts.Firing }} alert(s) firing:</b>
+                {{ range .Alerts.Firing }} {{ template "telegram_alert_firing" .}} {{ end }} {{ end }}
+                {{ if gt (len .Alerts.Resolved) 0 }}
+                <b>✅ {{ len .Alerts.Resolved }} alert(s) resolved:</b>
+                {{ range .Alerts.Resolved }} {{ template "telegram_alert_resolved" .}} {{ end }} {{ end }}
+                {{ end }}
+
+                {{ define "telegram_alert_firing" }}
+                  Severity: <b>{{ .Labels.severity }}</b>
+                  <b>{{ .Labels.alertname }}</b>
+                  {{ .Annotations.summary }}
+                  {{ .Annotations.description }}
+
+                  {{ .Annotations.AlertValues }}
+                  <a href="http://35.220.186.66/grafana/alerting/silence/new?matcher=alertname%3D{{ .Labels.alertname }}">Silence alert</a>
+                  <a href="http://35.220.186.66/grafana/d/glb-main">Access dashboard</a>
+                {{ end }}
+
+                {{ define "telegram_alert_resolved" }}
+                  <b>{{ .Labels.alertname }}</b>
+
+                  {{ .Annotations.AlertValues }}
+                  <a href="http://35.220.186.66/grafana/d/glb-main">Access dashboard</a>
+                {{ end }}
+              `}}
+        - name: slack-template
+          template: |-
+            {{`
+              {{ define "slack_title" }}
+                {{ if gt (len .Alerts.Firing) 0 }}
+                  🔥 {{ len .Alerts.Firing }} alert(s) firing
+                {{ end }}
+                {{ if gt (len .Alerts.Resolved) 0 }}
+                  ✅ {{ len .Alerts.Resolved }} alert(s) resolved
+                {{ end }}
+              {{ end }}
+
+              {{ define "slack_message" }}
+                {{ if gt (len .Alerts.Firing) 0 }}
+                {{ range .Alerts.Firing }} {{ template "slack_alert_firing" .}} {{ end }} {{ end }}
+                {{ if gt (len .Alerts.Resolved) 0 }}
+                {{ range .Alerts.Resolved }} {{ template "slack_alert_resolved" .}} {{ end }} {{ end }}
+              {{ end }}
+
+              {{ define "__alert_silence_link" -}}
+                {{ .ExternalURL }}/#/silences/new?filter=%7B
+                {{- range .CommonLabels.SortedPairs -}}
+                {{- if ne .Name "alertname" -}}
+                {{- .Name }}%3D"{{- .Value -}}"%2C%20
+                {{- end -}}
+                {{- end -}}
+                alertname%3D"{{- .CommonLabels.alertname -}}"%7D
+              {{- end }}
+
+              {{ define "slack_alert_firing" }}
+                Severity: *{{ .Labels.severity }}*
+                *{{ .Labels.alertname }}*
+                {{ .Annotations.summary }}
+                {{ .Annotations.description }}
+
+                {{ .Annotations.AlertValues }}
+                <http://35.220.186.66/grafana/d/glb-main|Access dashboard> - <http://35.220.186.66/grafana/alerting/silence/new?matcher=alertname%3D{{ .Labels.alertname }}|Silence alert>
+              {{ end }}
+
+              {{ define "slack_alert_resolved" }}
+                *{{ .Labels.alertname }}*
+
+                {{ .Annotations.AlertValues }}
+                <http://35.220.186.66/grafana/d/glb-main|Access dashboard>
+              {{ end }}
+
+            `}}
+    notification-policies.yaml:
+      apiVersion: 1
+      policies:
+        - orgId: 1
+          receiver: custom-notifier
+          group_wait: 60s
+          group_interval: 5m
+          repeat_interval: 24h
+          group_by: ["grafana_folder", "service_identifier"]
+    rules.yaml:
+      apiVersion: 1
+      groups:
+        - orgId: 1
+          name: production
+          folder: glb
+          interval: 1m
+          rules:
+            - uid: glb-alert-001
+              title: api-deployment-replicas-low
+              condition: C
+              data:
+                - refId: A
+                  relativeTimeRange:
+                    from: 21600
+                    to: 0
+                  datasourceUid: prometheus
+                  model:
+                    datasource:
+                      type: prometheus
+                      uid: prometheus
+                    editorMode: code
+                    expr: kube_deployment_status_replicas{deployment="api"}
+                    interval: ""
+                    intervalMs: 30000
+                    legendFormat: __auto
+                    maxDataPoints: 43200
+                    range: true
+                    refId: A
+                - refId: B
+                  datasourceUid: __expr__
+                  model:
+                    conditions:
+                      - evaluator:
+                          params: [ ]
+                          type: gt
+                        operator:
+                          type: and
+                        query:
+                          params:
+                            - B
+                        reducer:
+                          params: [ ]
+                          type: last
+                        type: query
+                    datasource:
+                      type: __expr__
+                      uid: __expr__
+                    expression: A
+                    hide: false
+                    intervalMs: 1000
+                    maxDataPoints: 43200
+                    reducer: last
+                    refId: B
+                    type: reduce
+                - refId: C
+                  datasourceUid: __expr__
+                  model:
+                    conditions:
+                      - evaluator:
+                          params:
+                            - 1
+                          type: lt
+                        operator:
+                          type: and
+                        query:
+                          params:
+                            - C
+                        reducer:
+                          params: [ ]
+                          type: last
+                        type: query
+                    datasource:
+                      type: __expr__
+                      uid: __expr__
+                    expression: B
+                    hide: false
+                    intervalMs: 1000
+                    maxDataPoints: 43200
+                    refId: C
+                    type: threshold
+              dashboardUid: glb-main
+              panelId: 2
+              noDataState: OK
+              execErrState: Error
+              for: 5m
+              annotations:
+                __dashboardUid__: glb-main
+                __panelId__: "2"
+                description: |-
+                  {{`Deployments count {{ $values.B.Value }}  is too low for: {{ $labels.deployment }}  .`}}
+                summary: API is down!
+              labels:
+                grafana_alert: "true"
+                grafana_folder: glb
+                service_identifier: api
+                severity: critical
+              isPaused: false
+            - uid: WsnJrAL4k
+              title: deployments unavailable
+              condition: B
+              data:
+                - refId: E
+                  relativeTimeRange:
+                    from: 10800
+                    to: 0
+                  datasourceUid: prometheus
+                  model:
+                    datasource:
+                      type: prometheus
+                      uid: prometheus
+                    editorMode: code
+                    exemplar: true
+                    expr: kube_deployment_status_replicas_unavailable{namespace="default"}
+                    hide: false
+                    interval: ""
+                    intervalMs: 30000
+                    legendFormat: |-
+                      {{`{{ deployment }}`}}
+                    maxDataPoints: 43200
+                    range: true
+                    refId: E
+                - refId: A
+                  datasourceUid: __expr__
+                  model:
+                    conditions:
+                      - evaluator:
+                          params: [ ]
+                          type: gt
+                        operator:
+                          type: and
+                        query:
+                          params:
+                            - A
+                        reducer:
+                          params: [ ]
+                          type: last
+                        type: query
+                    datasource:
+                      type: __expr__
+                      uid: __expr__
+                    expression: E
+                    hide: false
+                    intervalMs: 1000
+                    maxDataPoints: 43200
+                    reducer: last
+                    refId: A
+                    type: reduce
+                - refId: B
+                  datasourceUid: __expr__
+                  model:
+                    conditions:
+                      - evaluator:
+                          params:
+                            - 2
+                          type: gt
+                        operator:
+                          type: and
+                        query:
+                          params:
+                            - B
+                        reducer:
+                          params: [ ]
+                          type: last
+                        type: query
+                    datasource:
+                      type: __expr__
+                      uid: __expr__
+                    expression: A
+                    hide: false
+                    intervalMs: 1000
+                    maxDataPoints: 43200
+                    refId: B
+                    type: threshold
+              dashboardUid: glb-main
+              panelId: 30
+              noDataState: OK
+              execErrState: Error
+              for: 10m
+              annotations:
+                __dashboardUid__: glb-main
+                __panelId__: "30"
+                description: |-
+                  {{`Deployment {{ deployment }}\nhas \n{{ $values.B.Value }}\nreplicas unavailable`}}
+                summary: "More deployment cannot scale properly. \nSomething definitely wrong."
+              labels:
+                severity: critical
+              isPaused: false
+            - uid: 253zj0LVz
+              title: container-restarts [30m]
+              condition: B
+              data:
+                - refId: E
+                  relativeTimeRange:
+                    from: 10800
+                    to: 0
+                  datasourceUid: prometheus
+                  model:
+                    datasource:
+                      type: prometheus
+                      uid: prometheus
+                    editorMode: code
+                    exemplar: true
+                    expr: sort_desc(increase(kube_pod_container_status_restarts_total{namespace=~"default"}[30m]))
+                    hide: false
+                    interval: ""
+                    intervalMs: 30000
+                    legendFormat: |-
+                      {{`{{ container }}`}}
+                    maxDataPoints: 43200
+                    range: true
+                    refId: E
+                - refId: A
+                  datasourceUid: __expr__
+                  model:
+                    conditions:
+                      - evaluator:
+                          params: [ ]
+                          type: gt
+                        operator:
+                          type: and
+                        query:
+                          params:
+                            - A
+                        reducer:
+                          params: [ ]
+                          type: last
+                        type: query
+                    datasource:
+                      type: __expr__
+                      uid: __expr__
+                    expression: E
+                    hide: false
+                    intervalMs: 1000
+                    maxDataPoints: 43200
+                    reducer: last
+                    refId: A
+                    type: reduce
+                - refId: B
+                  datasourceUid: __expr__
+                  model:
+                    conditions:
+                      - evaluator:
+                          params:
+                            - 10
+                          type: gt
+                        operator:
+                          type: and
+                        query:
+                          params:
+                            - B
+                        reducer:
+                          params: [ ]
+                          type: last
+                        type: query
+                    datasource:
+                      type: __expr__
+                      uid: __expr__
+                    expression: A
+                    hide: false
+                    intervalMs: 1000
+                    maxDataPoints: 43200
+                    refId: B
+                    type: threshold
+              dashboardUid: glb-main
+              panelId: 45
+              noDataState: OK
+              execErrState: Error
+              for: 5m
+              annotations:
+                __dashboardUid__: glb-main
+                __panelId__: "45"
+                description: |-
+                  {{` Container {{ $labels.container }}\nalready restarted \n{{ $values.B.Value }}\ntimes `}}
+                summary: |-
+                  {{` Container {{ $labels.container }} is not ok `}}
+              labels:
+                severity: warning
+              isPaused: false
+            - uid: dtMn9QYVk
+              title: API Requests [500 errors] - critical
+              condition: C
+              data:
+                - refId: A
+                  relativeTimeRange:
+                    from: 86400
+                    to: 0
+                  datasourceUid: elastic
+                  model:
+                    alias: ""
+                    bucketAggs:
+                      - field: startTimeMillis
+                        id: "2"
+                        settings:
+                          interval: 10m
+                          min_doc_count: "0"
+                          timeZone: utc
+                          trimEdges: "0"
+                        type: date_histogram
+                    datasource:
+                      type: elasticsearch
+                      uid: elastic
+                    hide: false
+                    intervalMs: 10000
+                    maxDataPoints: 43200
+                    metrics:
+                      - id: "1"
+                        type: count
+                    query: "process.serviceName: api AND tag.error: true AND tag.statusCode : [499 TO *]"
+                    refId: A
+                    timeField: startTimeMillis
+                - refId: B
+                  datasourceUid: __expr__
+                  model:
+                    conditions:
+                      - evaluator:
+                          params: [ ]
+                          type: gt
+                        operator:
+                          type: and
+                        query:
+                          params:
+                            - B
+                        reducer:
+                          params: [ ]
+                          type: last
+                        type: query
+                    datasource:
+                      type: __expr__
+                      uid: __expr__
+                    expression: A
+                    hide: false
+                    intervalMs: 1000
+                    maxDataPoints: 43200
+                    reducer: last
+                    refId: B
+                    type: reduce
+                - refId: C
+                  datasourceUid: __expr__
+                  model:
+                    conditions:
+                      - evaluator:
+                          params:
+                            - 50
+                          type: gt
+                        operator:
+                          type: and
+                        query:
+                          params:
+                            - C
+                        reducer:
+                          params: [ ]
+                          type: last
+                        type: query
+                    datasource:
+                      type: __expr__
+                      uid: __expr__
+                    expression: B
+                    hide: false
+                    intervalMs: 1000
+                    maxDataPoints: 43200
+                    refId: C
+                    type: threshold
+              dashboardUid: glb-main
+              panelId: 50
+              noDataState: OK
+              execErrState: Error
+              for: 5m
+              annotations:
+                __dashboardUid__: glb-main
+                __panelId__: "50"
+                description: |-
+                  {{` API 500 errors count: \n{{ $values.B.Value }}\nis too high. `}}
+                summary: Too many errors on API
+              labels:
+                severity: critical
+              isPaused: false
+
+## limit number of exporters:
+#prometheus-node-exporter:
+#  nodeSelector:
+#    prometheus-node-selector: zone1

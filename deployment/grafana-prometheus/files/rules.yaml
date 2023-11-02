@@ -1,0 +1,832 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: production
+    folder: glb
+    interval: 1m
+    rules:
+      - uid: glb-alert-001
+        title: api-deployment-replicas-low
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 21600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus
+              editorMode: code
+              expr: kube_deployment_status_replicas{deployment="api"}
+              interval: ""
+              intervalMs: 30000
+              legendFormat: __auto
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: []
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              reducer: last
+              refId: B
+              type: reduce
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 1
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        dashboardUid: glb-main
+        panelId: 2
+        noDataState: NoData
+        execErrState: Error
+        for: 30s
+        annotations:
+          __dashboardUid__: glb-main
+          __panelId__: "2"
+          description: "Deployments count {{ $values.B.Value }}  is too low for: {{ $labels.deployment }}  ."
+          summary: API is down!
+        labels:
+          grafana_alert: "true"
+          grafana_folder: glb
+          service_identifier: api
+          severity: critical
+        isPaused: false
+      - uid: tUIlXAY4z
+        title: container-restarts-total-increase [30m]
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 10800
+              to: 0
+            datasourceUid: prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus
+              editorMode: code
+              expr: sum(increase(kube_pod_container_status_restarts_total{namespace="default"}[30m]))
+              interval: ""
+              intervalMs: 30000
+              legendFormat: __auto
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: []
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              reducer: last
+              refId: B
+              type: reduce
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 5
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        dashboardUid: glb-main
+        panelId: 46
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          __dashboardUid__: glb-main
+          __panelId__: "46"
+          description: Pods total restarts count \n{{ $values.B.Value }}\n  is above normal
+          summary: Pods are restarting. Something wrong.
+        labels:
+          severity: warning
+        isPaused: false
+      - uid: b44g9AYVz
+        title: container-restarts-total-increase [30m] (critical)
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 10800
+              to: 0
+            datasourceUid: prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus
+              editorMode: code
+              expr: sum(increase(kube_pod_container_status_restarts_total{namespace="default"}[30m]))
+              interval: ""
+              intervalMs: 30000
+              legendFormat: __auto
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: []
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              reducer: last
+              refId: B
+              type: reduce
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 15
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        dashboardUid: glb-main
+        panelId: 46
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          __dashboardUid__: glb-main
+          __panelId__: "46"
+          description: Pods total restarts count \n{{ $values.B.Value }}\n  is too high
+          summary: Pods are restarting too much. Something definitely wrong.
+        labels:
+          severity: critical
+        isPaused: false
+      - uid: mgGtrAYVz
+        title: deployments unavailable - warning
+        condition: B
+        data:
+          - refId: E
+            relativeTimeRange:
+              from: 10800
+              to: 0
+            datasourceUid: prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus
+              editorMode: code
+              exemplar: true
+              expr: kube_deployment_status_replicas_unavailable{namespace="default"}
+              hide: false
+              interval: ""
+              intervalMs: 30000
+              legendFormat: "{{ deployment }}"
+              maxDataPoints: 43200
+              range: true
+              refId: E
+          - refId: A
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: []
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: E
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              reducer: last
+              refId: A
+              type: reduce
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 0
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        dashboardUid: glb-main
+        panelId: 30
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          __dashboardUid__: glb-main
+          __panelId__: "30"
+          description: Deployment {{ deployment }}\nhas \n{{ $values.B.Value }}\nreplicas unavailable
+          summary: "Deployment cannot scale properly. \nSomething not ok"
+        labels:
+          severity: warning
+        isPaused: false
+      - uid: WsnJrAL4k
+        title: deployments unavailable - critical
+        condition: B
+        data:
+          - refId: E
+            relativeTimeRange:
+              from: 10800
+              to: 0
+            datasourceUid: prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus
+              editorMode: code
+              exemplar: true
+              expr: kube_deployment_status_replicas_unavailable{namespace="default"}
+              hide: false
+              interval: ""
+              intervalMs: 30000
+              legendFormat: "{{ deployment }}"
+              maxDataPoints: 43200
+              range: true
+              refId: E
+          - refId: A
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: []
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: E
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              reducer: last
+              refId: A
+              type: reduce
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 1
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        dashboardUid: glb-main
+        panelId: 30
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          __dashboardUid__: glb-main
+          __panelId__: "30"
+          description: Deployment {{ deployment }}\nhas \n{{ $values.B.Value }}\nreplicas unavailable
+          summary: "More deployment cannot scale properly. \nSomething definitely wrong."
+        labels:
+          severity: critical
+        isPaused: false
+      - uid: 253zj0LVz
+        title: container-restarts [30m] - warning
+        condition: B
+        data:
+          - refId: E
+            relativeTimeRange:
+              from: 10800
+              to: 0
+            datasourceUid: prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus
+              editorMode: code
+              exemplar: true
+              expr: sort_desc(increase(kube_pod_container_status_restarts_total{namespace=~"default"}[30m]))
+              hide: false
+              interval: ""
+              intervalMs: 30000
+              legendFormat: "{{ container }}"
+              maxDataPoints: 43200
+              range: true
+              refId: E
+          - refId: A
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: []
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: E
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              reducer: last
+              refId: A
+              type: reduce
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 5
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: B
+              type: threshold
+        dashboardUid: glb-main
+        panelId: 45
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          __dashboardUid__: glb-main
+          __panelId__: "45"
+          description: ' Container {{ $labels.container }}\nalready restarted \n{{ $values.B.Value }}\ntimes '
+          summary: " Container {{ $labels.container }} is not ok "
+        labels:
+          severity: warning
+        isPaused: false
+      - uid: dtMn9QYVk
+        title: API Requests [500 errors] - critical
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 86400
+              to: 0
+            datasourceUid: elastic
+            model:
+              alias: ""
+              bucketAggs:
+                - field: startTimeMillis
+                  id: "2"
+                  settings:
+                    interval: 10m
+                    min_doc_count: "0"
+                    timeZone: utc
+                    trimEdges: "0"
+                  type: date_histogram
+              datasource:
+                type: elasticsearch
+                uid: elastic
+              hide: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+              metrics:
+                - id: "1"
+                  type: count
+              query: "process.serviceName: api AND tag.error: true AND tag.statusCode : [499 TO *]"
+              refId: A
+              timeField: startTimeMillis
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: []
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              reducer: last
+              refId: B
+              type: reduce
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 50
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        dashboardUid: glb-main
+        panelId: 50
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          __dashboardUid__: glb-main
+          __panelId__: "50"
+          description: ' API 500 errors count: \n{{ $values.B.Value }}\nis too high. '
+          summary: Too many errors on API
+        labels:
+          severity: critical
+        isPaused: false
+  - orgId: 1
+    name: production-new
+    folder: glb-new
+    interval: 1m
+    rules:
+      - uid: oAjnCQL4k
+        title: API Requests low
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 86400
+              to: 0
+            datasourceUid: elastic
+            model:
+              alias: ""
+              bucketAggs:
+                - field: startTimeMillis
+                  id: "2"
+                  settings:
+                    interval: 10m
+                    min_doc_count: "0"
+                    timeZone: utc
+                    trimEdges: "0"
+                  type: date_histogram
+              datasource:
+                type: elasticsearch
+                uid: elastic
+              hide: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+              metrics:
+                - id: "1"
+                  type: count
+              query: "process.serviceName: api"
+              refId: A
+              timeField: startTimeMillis
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: []
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              reducer: last
+              refId: B
+              type: reduce
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 50
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        dashboardUid: glb-main
+        panelId: 48
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          __dashboardUid__: glb-main
+          __panelId__: "48"
+          description: |-
+            API requests count: \n
+            {{ $values.B.Value }}
+            \nis too low.
+          summary: Too few requests on API. Something wrong
+        labels:
+          severity: critical
+        isPaused: false
+      - uid: _ndDCwYVz
+        title: Hubspot Sync - low
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 86400
+              to: 0
+            datasourceUid: elastic
+            model:
+              alias: ""
+              bucketAggs:
+                - field: startTimeMillis
+                  id: "2"
+                  settings:
+                    interval: 10m
+                    min_doc_count: "0"
+                    timeZone: utc
+                    trimEdges: "0"
+                  type: date_histogram
+              datasource:
+                type: elasticsearch
+                uid: elastic
+              hide: false
+              intervalMs: 10000
+              maxDataPoints: 43200
+              metrics:
+                - id: "1"
+                  type: count
+              query: process.serviceName:sync
+              refId: A
+              timeField: startTimeMillis
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: []
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - B
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              reducer: last
+              refId: B
+              type: reduce
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 100
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              hide: false
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: C
+              type: threshold
+        dashboardUid: glb-main
+        panelId: 52
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          __dashboardUid__: glb-main
+          __panelId__: "52"
+          description: |-
+            Hubspot sync requests count: \n
+            {{ $values.B.Value }}
+            \nis too low.
+          summary: Too few requests on Hubspot sync. Something wrong
+        isPaused: false

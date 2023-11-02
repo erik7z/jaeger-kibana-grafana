@@ -1,0 +1,27 @@
+{{ define "alert_severity_prefix_emoji" -}}
+	{{- if ne .Status "firing" -}}
+		:white_check_mark:
+	{{- else if eq .CommonLabels.severity "critical" -}}
+		:red_circle:
+	{{- else if eq .CommonLabels.severity "warning" -}}
+		:warning:
+	{{- end -}}
+{{- end -}}
+
+
+{{ define "slack.title" -}}
+	{{ template "alert_severity_prefix_emoji" . }}
+	[{{- .Status | toUpper -}}{{- if eq .Status "firing" }} x {{ .Alerts.Firing | len -}}{{- end }}  | {{ .CommonLabels.env | toUpper -}} ] ||  {{ .CommonLabels.alertname -}}
+{{- end -}}
+
+{{- define "slack.text" -}}
+{{- range .Alerts -}}
+{{ if gt (len .Annotations) 0 }}
+*Summary*: {{ .Annotations.summary}}
+*Description*: {{ .Annotations.description }}
+Labels:
+{{ range .Labels.SortedPairs }}{{ if or (eq .Name "env") (eq .Name "instance") }}• {{ .Name }}: `{{ .Value }}`
+{{ end }}{{ end }}
+{{ end }}
+{{ end }}
+{{ end }}
